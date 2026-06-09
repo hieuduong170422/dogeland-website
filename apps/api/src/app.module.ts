@@ -20,6 +20,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ServerStatusModule } from './modules/server-status/server-status.module';
 import { UsersModule } from './modules/users/users.module';
 import { DiscordModule } from './modules/discord/discord.module';
+import { ShopModule } from './modules/shop/shop.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { DiscordModule } from './modules/discord/discord.module';
     ServerStatusModule,
     UsersModule,
     DiscordModule,
+    ShopModule,
   ],
   controllers: [AppController],
   providers: [

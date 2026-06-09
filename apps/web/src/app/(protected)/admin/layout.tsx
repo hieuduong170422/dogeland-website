@@ -8,8 +8,8 @@ import {
   Users,
   Gift,
   FileText,
-  HeadphonesIcon,
   ShieldAlert,
+  ShoppingBag,
 } from 'lucide-react';
 import { useUser } from '@/lib/stores/auth.store';
 import { cn } from '@/lib/utils/cn';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils/cn';
 const NAV_ITEMS = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Người dùng', icon: Users },
+  { href: '/admin/shop', label: 'Shop', icon: ShoppingBag },
   { href: '/admin/giftcodes', label: 'Gift Code', icon: Gift },
   { href: '/admin/audit-logs', label: 'Audit Log', icon: FileText },
 ];
