@@ -52,6 +52,139 @@ function TypeIcon({ type, size = 16 }: { type: ShopItemType; size?: number }) {
   return <Icon size={size} />;
 }
 
+// ─── Description parser ──────────────────────────────────────────────────────
+
+function parseDescription(desc: string | null): { intro: string; effects: string[]; note: string } {
+  if (!desc) return { intro: '', effects: [], note: '' };
+
+  const colonIdx = desc.indexOf(':');
+
+  // No colon — check if it contains '+Effect' enchant syntax
+  if (colonIdx === -1) {
+    const plusIdx = desc.indexOf('+');
+    if (plusIdx !== -1) {
+      const intro = desc.slice(0, plusIdx).trim().replace(/,\s*$/, '');
+      const effectsPart = desc.slice(plusIdx);
+      const effects = effectsPart
+        .split(',')
+        .map((e) => e.trim().replace(/^[+]/, ''))
+        .filter(Boolean);
+      return { intro, effects, note: '' };
+    }
+    return { intro: desc, effects: [], note: '' };
+  }
+
+  const intro = desc.slice(0, colonIdx).trim();
+  const rest = desc.slice(colonIdx + 1).trim();
+
+  // Detect note after " — " dash separator
+  const dashIdx = rest.indexOf(' — ');
+  const mainPart = dashIdx !== -1 ? rest.slice(0, dashIdx).trim() : rest;
+  const note = dashIdx !== -1 ? rest.slice(dashIdx + 3).trim() : '';
+
+  const effects = mainPart
+    .split(',')
+    .map((e) => e.trim().replace(/^[+]/, ''))
+    .filter(Boolean);
+
+  return { intro, effects, note };
+}
+
+const EFFECT_COLORS: Record<ShopItemType, string> = {
+  RANK:     'text-yellow-300',
+  ITEM:     'text-cyan-300',
+  CRATE:    'text-purple-300',
+  COSMETIC: 'text-pink-300',
+};
+
+const EFFECT_DOT: Record<ShopItemType, string> = {
+  RANK:     'bg-yellow-400',
+  ITEM:     'bg-cyan-400',
+  CRATE:    'bg-purple-400',
+  COSMETIC: 'bg-pink-400',
+};
+
+// Minecraft-style tooltip — used in the purchase dialog
+function MinecraftTooltip({ item }: { item: ShopItem }) {
+  const { intro, effects, note } = parseDescription(item.description);
+  const effectColor = EFFECT_COLORS[item.type];
+  const dotColor = EFFECT_DOT[item.type];
+
+  const borderColor: Record<ShopItemType, string> = {
+    RANK:     'border-yellow-500/40',
+    ITEM:     'border-cyan-500/40',
+    CRATE:    'border-purple-500/40',
+    COSMETIC: 'border-pink-500/40',
+  };
+
+  return (
+    <div className={cn(
+      'rounded-xl border-2 bg-zinc-900/95 overflow-hidden',
+      borderColor[item.type],
+    )}>
+      {/* Header */}
+      <div className="px-4 pt-3 pb-2 border-b border-white/5">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-lg">{TYPE_EMOJI[item.type]}</span>
+          <span className={cn('font-bold text-base', effectColor)}>{item.name}</span>
+        </div>
+        {intro && (
+          <p className="text-xs text-zinc-400">{intro}</p>
+        )}
+      </div>
+
+      {/* Effects list */}
+      {effects.length > 0 && (
+        <div className="px-4 py-2.5 space-y-1.5">
+          {effects.map((effect, i) => (
+            <div key={i} className="flex items-center gap-2.5">
+              <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', dotColor)} />
+              <span className={cn('text-sm font-medium', effectColor)}>{effect}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Note */}
+      {note && (
+        <div className="px-4 pb-3 pt-1 border-t border-white/5">
+          <p className="text-xs text-zinc-500 italic">{note}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Effect chips for item card (max 3 visible)
+function EffectChips({ item }: { item: ShopItem }) {
+  const { effects } = parseDescription(item.description);
+  if (effects.length === 0) {
+    return <p className="text-xs text-muted-foreground line-clamp-2">{item.description ?? 'Không có mô tả'}</p>;
+  }
+  const visible = effects.slice(0, 3);
+  const hidden = effects.length - visible.length;
+  const chipColor: Record<ShopItemType, string> = {
+    RANK:     'bg-yellow-500/10 text-yellow-300 border-yellow-500/20',
+    ITEM:     'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
+    CRATE:    'bg-purple-500/10 text-purple-300 border-purple-500/20',
+    COSMETIC: 'bg-pink-500/10 text-pink-300 border-pink-500/20',
+  };
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {visible.map((e, i) => (
+        <span key={i} className={cn('text-[10px] px-1.5 py-0.5 rounded border font-medium truncate max-w-[120px]', chipColor[item.type])}>
+          {e}
+        </span>
+      ))}
+      {hidden > 0 && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded border border-border text-muted-foreground">
+          +{hidden}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Item image placeholder ───────────────────────────────────────────────────
 
 const TYPE_EMOJI: Record<ShopItemType, string> = {
@@ -126,15 +259,18 @@ function PurchaseDialog({
         </DialogHeader>
 
         {/* Item preview */}
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 border border-border">
-          <ItemImage item={item} size="md" />
-          <div className="flex-1 min-w-0 space-y-1">
-            <span className={cn('inline-block text-xs px-2 py-0.5 rounded-full border font-medium', style.badge)}>
-              {style.label}
-            </span>
-            <p className="font-semibold">{item.name}</p>
-            <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+        <div className="space-y-3">
+          <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 border border-border">
+            <ItemImage item={item} size="md" />
+            <div className="flex-1 min-w-0 space-y-1">
+              <span className={cn('inline-block text-xs px-2 py-0.5 rounded-full border font-medium', style.badge)}>
+                {style.label}
+              </span>
+              <p className="font-bold text-base">{item.name}</p>
+              <p className="text-xs text-muted-foreground">{item.price.toLocaleString()} xu</p>
+            </div>
           </div>
+          {item.description && <MinecraftTooltip item={item} />}
         </div>
 
         {/* Server selector for RANK */}
@@ -256,10 +392,10 @@ function ItemCard({ item, onBuy }: { item: ShopItem; onBuy: (item: ShopItem) => 
 
       {/* Content */}
       <div className="flex flex-col flex-1 p-4">
-        <h3 className="font-bold text-sm leading-tight mb-1">{item.name}</h3>
-        <p className="text-xs text-muted-foreground line-clamp-2 flex-1 mb-3">
-          {item.description ?? 'Không có mô tả'}
-        </p>
+        <h3 className="font-bold text-sm leading-tight mb-1.5">{item.name}</h3>
+        <div className="flex-1 mb-3">
+          <EffectChips item={item} />
+        </div>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
