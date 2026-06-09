@@ -5,7 +5,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Float, PerspectiveCamera, Stars } from '@react-three/drei/core';
 import * as THREE from 'three';
 
-// ─── Procedural pixel-art textures (no external files needed) ───────────────
+// ─── Procedural pixel-art textures ───────────────────────────────────────────
 
 function makePixelTexture(draw: (ctx: CanvasRenderingContext2D) => void, size = 16): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
@@ -21,10 +21,8 @@ function makePixelTexture(draw: (ctx: CanvasRenderingContext2D) => void, size = 
 
 function makeGrassTopTexture() {
   return makePixelTexture((ctx) => {
-    // Base green
     ctx.fillStyle = '#5d9e35';
     ctx.fillRect(0, 0, 16, 16);
-    // Darker patches
     const dark = ['#4a8329', '#52902f', '#3f7022', '#61a83a'];
     const light = ['#6db840', '#74c445', '#68af3c'];
     for (let i = 0; i < 30; i++) {
@@ -40,35 +38,22 @@ function makeGrassTopTexture() {
 
 function makeGrassSideTexture() {
   return makePixelTexture((ctx) => {
-    // Dirt bottom (2/3)
     ctx.fillStyle = '#866043';
     ctx.fillRect(0, 4, 16, 12);
-    // Dirt noise
     const dirtTones = ['#7a5535', '#9b7050', '#6e4c2d', '#8f6640'];
     for (let i = 0; i < 40; i++) {
       ctx.fillStyle = dirtTones[Math.floor(i * 3.7) % dirtTones.length];
       ctx.fillRect(Math.floor(i * 4.3) % 16, 4 + (Math.floor(i * 3.1) % 12), 2, 1);
     }
-    // Grass top strip (4px)
     ctx.fillStyle = '#5d9e35';
     ctx.fillRect(0, 0, 16, 4);
-    // Grass highlights
     ctx.fillStyle = '#6db840';
-    ctx.fillRect(2, 0, 1, 1);
-    ctx.fillRect(7, 1, 2, 1);
-    ctx.fillRect(12, 0, 1, 2);
+    ctx.fillRect(2, 0, 1, 1); ctx.fillRect(7, 1, 2, 1); ctx.fillRect(12, 0, 1, 2);
     ctx.fillStyle = '#4a8329';
-    ctx.fillRect(5, 0, 2, 1);
-    ctx.fillRect(10, 1, 1, 1);
-    // Grass-to-dirt transition fringe
+    ctx.fillRect(5, 0, 2, 1); ctx.fillRect(10, 1, 1, 1);
     ctx.fillStyle = '#4a8329';
-    ctx.fillRect(0, 3, 1, 2);
-    ctx.fillRect(4, 3, 2, 2);
-    ctx.fillRect(9, 3, 1, 2);
-    ctx.fillRect(14, 3, 2, 2);
-    ctx.fillStyle = '#5d9e35';
-    ctx.fillRect(2, 3, 1, 1);
-    ctx.fillRect(11, 3, 2, 1);
+    ctx.fillRect(0, 3, 1, 2); ctx.fillRect(4, 3, 2, 2);
+    ctx.fillRect(9, 3, 1, 2); ctx.fillRect(14, 3, 2, 2);
   });
 }
 
@@ -86,32 +71,20 @@ function makeDirtTexture() {
 
 // ─── Grass Block ─────────────────────────────────────────────────────────────
 
-function GrassBlock({
-  position,
-  scale,
-  speed,
-}: {
-  position: [number, number, number];
-  scale: number;
-  speed: number;
-}) {
+function GrassBlock({ position, scale, speed }: { position: [number, number, number]; scale: number; speed: number }) {
   const mesh = useRef<THREE.Mesh>(null!);
-  const rotSpeed = useMemo(() => ({
-    x: (Math.random() - 0.5) * 0.3,
-    y: (Math.random() - 0.5) * 0.5,
-  }), []);
-
+  const rotSpeed = useMemo(() => ({ x: (Math.random() - 0.5) * 0.3, y: (Math.random() - 0.5) * 0.5 }), []);
   const materials = useMemo(() => {
     const top = makeGrassTopTexture();
     const side = makeGrassSideTexture();
     const bottom = makeDirtTexture();
     return [
-      new THREE.MeshStandardMaterial({ map: side }),    // +X right
-      new THREE.MeshStandardMaterial({ map: side }),    // -X left
-      new THREE.MeshStandardMaterial({ map: top }),     // +Y top
-      new THREE.MeshStandardMaterial({ map: bottom }),  // -Y bottom
-      new THREE.MeshStandardMaterial({ map: side }),    // +Z front
-      new THREE.MeshStandardMaterial({ map: side }),    // -Z back
+      new THREE.MeshStandardMaterial({ map: side }),
+      new THREE.MeshStandardMaterial({ map: side }),
+      new THREE.MeshStandardMaterial({ map: top }),
+      new THREE.MeshStandardMaterial({ map: bottom }),
+      new THREE.MeshStandardMaterial({ map: side }),
+      new THREE.MeshStandardMaterial({ map: side }),
     ];
   }, []);
 
@@ -129,41 +102,147 @@ function GrassBlock({
   );
 }
 
-// ─── Block positions (fixed seed — same layout every render) ─────────────────
+// ─── Doge Head (procedural Shiba Inu) ────────────────────────────────────────
 
-const BLOCKS = [
-  { id: 0,  position: [-8.2,  3.1, -5.0] as [number, number, number], scale: 0.85, speed: 0.55 },
-  { id: 1,  position: [ 7.4,  4.2, -3.5] as [number, number, number], scale: 0.70, speed: 0.70 },
-  { id: 2,  position: [-5.1, -3.8, -4.0] as [number, number, number], scale: 0.55, speed: 0.45 },
-  { id: 3,  position: [ 4.8, -4.5, -5.5] as [number, number, number], scale: 0.90, speed: 0.60 },
-  { id: 4,  position: [-2.3,  5.5, -6.0] as [number, number, number], scale: 0.45, speed: 0.80 },
-  { id: 5,  position: [ 9.1, -1.2, -4.5] as [number, number, number], scale: 0.65, speed: 0.50 },
-  { id: 6,  position: [-9.5, -0.5, -5.0] as [number, number, number], scale: 0.75, speed: 0.65 },
-  { id: 7,  position: [ 1.5,  5.8, -3.0] as [number, number, number], scale: 0.50, speed: 0.75 },
-  { id: 8,  position: [-3.8, -5.2, -6.5] as [number, number, number], scale: 0.80, speed: 0.55 },
-  { id: 9,  position: [ 6.2,  1.8, -4.0] as [number, number, number], scale: 0.60, speed: 0.68 },
-  { id: 10, position: [-7.0,  1.5, -3.5] as [number, number, number], scale: 0.40, speed: 0.90 },
-  { id: 11, position: [ 3.3, -2.5, -5.5] as [number, number, number], scale: 0.70, speed: 0.48 },
-  { id: 12, position: [-1.0,  2.8, -7.0] as [number, number, number], scale: 0.85, speed: 0.58 },
-  { id: 13, position: [ 8.5, -3.8, -4.5] as [number, number, number], scale: 0.55, speed: 0.72 },
-  { id: 14, position: [-6.5, -2.0, -3.0] as [number, number, number], scale: 0.65, speed: 0.62 },
-  { id: 15, position: [ 0.8, -5.5, -6.0] as [number, number, number], scale: 0.75, speed: 0.44 },
-  { id: 16, position: [-4.5,  4.8, -5.0] as [number, number, number], scale: 0.50, speed: 0.82 },
-  { id: 17, position: [ 5.5,  3.5, -6.5] as [number, number, number], scale: 0.90, speed: 0.52 },
+const FUR    = '#C8963C';
+const LIGHT  = '#F0D898';
+const DARK   = '#1a0800';
+const PINK   = '#e8909a';
+const NOSE   = '#2a1008';
+
+function DogeHead({ position, scale, speed }: { position: [number, number, number]; scale: number; speed: number }) {
+  const group = useRef<THREE.Group>(null!);
+  const rotSpeed = useMemo(() => ({ y: (Math.random() - 0.5) * 0.6 }), []);
+
+  useFrame((_, delta) => {
+    group.current.rotation.y += rotSpeed.y * delta * speed;
+  });
+
+  return (
+    <Float speed={speed} floatIntensity={0.7} rotationIntensity={0.15}>
+      <group ref={group} position={position} scale={scale}>
+
+        {/* ── Head ── */}
+        <mesh position={[0, 0, 0]}>
+          <sphereGeometry args={[0.5, 10, 10]} />
+          <meshStandardMaterial color={FUR} roughness={0.85} />
+        </mesh>
+
+        {/* ── Forehead lighter patch ── */}
+        <mesh position={[0, 0.18, 0.38]} scale={[0.55, 0.35, 0.18]}>
+          <sphereGeometry args={[0.4, 8, 8]} />
+          <meshStandardMaterial color={LIGHT} roughness={0.9} />
+        </mesh>
+
+        {/* ── Snout ── */}
+        <mesh position={[0, -0.1, 0.42]} scale={[1.1, 0.75, 0.7]}>
+          <sphereGeometry args={[0.22, 8, 8]} />
+          <meshStandardMaterial color={LIGHT} roughness={0.9} />
+        </mesh>
+
+        {/* ── Nose ── */}
+        <mesh position={[0, -0.04, 0.59]}>
+          <sphereGeometry args={[0.075, 6, 6]} />
+          <meshStandardMaterial color={NOSE} roughness={0.5} />
+        </mesh>
+
+        {/* ── Eyes ── */}
+        <mesh position={[-0.19, 0.14, 0.44]}>
+          <sphereGeometry args={[0.068, 7, 7]} />
+          <meshStandardMaterial color={DARK} roughness={0.3} />
+        </mesh>
+        <mesh position={[0.19, 0.14, 0.44]}>
+          <sphereGeometry args={[0.068, 7, 7]} />
+          <meshStandardMaterial color={DARK} roughness={0.3} />
+        </mesh>
+
+        {/* ── Eye shine ── */}
+        <mesh position={[-0.21, 0.16, 0.49]}>
+          <sphereGeometry args={[0.022, 5, 5]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.1} />
+        </mesh>
+        <mesh position={[0.17, 0.16, 0.49]}>
+          <sphereGeometry args={[0.022, 5, 5]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.1} />
+        </mesh>
+
+        {/* ── Ears (outer) ── */}
+        <mesh position={[-0.35, 0.55, 0.05]} rotation={[0.25, -0.25, -0.35]}>
+          <coneGeometry args={[0.2, 0.45, 4]} />
+          <meshStandardMaterial color={FUR} roughness={0.9} />
+        </mesh>
+        <mesh position={[0.35, 0.55, 0.05]} rotation={[0.25, 0.25, 0.35]}>
+          <coneGeometry args={[0.2, 0.45, 4]} />
+          <meshStandardMaterial color={FUR} roughness={0.9} />
+        </mesh>
+
+        {/* ── Ears (inner pink) ── */}
+        <mesh position={[-0.32, 0.55, 0.1]} rotation={[0.25, -0.25, -0.35]}>
+          <coneGeometry args={[0.11, 0.3, 4]} />
+          <meshStandardMaterial color={PINK} roughness={0.9} />
+        </mesh>
+        <mesh position={[0.32, 0.55, 0.1]} rotation={[0.25, 0.25, 0.35]}>
+          <coneGeometry args={[0.11, 0.3, 4]} />
+          <meshStandardMaterial color={PINK} roughness={0.9} />
+        </mesh>
+
+        {/* ── Cheek fluff ── */}
+        <mesh position={[-0.42, -0.05, 0.28]} scale={[0.7, 0.65, 0.6]}>
+          <sphereGeometry args={[0.22, 7, 7]} />
+          <meshStandardMaterial color={LIGHT} roughness={0.9} />
+        </mesh>
+        <mesh position={[0.42, -0.05, 0.28]} scale={[0.7, 0.65, 0.6]}>
+          <sphereGeometry args={[0.22, 7, 7]} />
+          <meshStandardMaterial color={LIGHT} roughness={0.9} />
+        </mesh>
+
+      </group>
+    </Float>
+  );
+}
+
+// ─── Scene layout ─────────────────────────────────────────────────────────────
+
+const GRASS_BLOCKS = [
+  { id: 0,  position: [-8.2,  3.1, -6.0] as [number, number, number], scale: 0.75, speed: 0.55 },
+  { id: 1,  position: [ 7.4,  4.2, -5.5] as [number, number, number], scale: 0.65, speed: 0.70 },
+  { id: 2,  position: [-5.1, -4.8, -5.0] as [number, number, number], scale: 0.55, speed: 0.45 },
+  { id: 3,  position: [ 4.8, -5.5, -6.5] as [number, number, number], scale: 0.80, speed: 0.60 },
+  { id: 4,  position: [-2.3,  5.5, -7.0] as [number, number, number], scale: 0.45, speed: 0.80 },
+  { id: 5,  position: [ 9.1, -1.2, -5.5] as [number, number, number], scale: 0.60, speed: 0.50 },
+  { id: 6,  position: [-9.5, -0.5, -6.0] as [number, number, number], scale: 0.70, speed: 0.65 },
+  { id: 7,  position: [ 1.5,  5.8, -6.5] as [number, number, number], scale: 0.50, speed: 0.75 },
+  { id: 8,  position: [ 6.2,  1.8, -5.0] as [number, number, number], scale: 0.55, speed: 0.68 },
+  { id: 9,  position: [-7.0,  1.5, -4.5] as [number, number, number], scale: 0.40, speed: 0.90 },
+  { id: 10, position: [ 3.3, -2.5, -6.5] as [number, number, number], scale: 0.65, speed: 0.48 },
+  { id: 11, position: [-4.5,  4.8, -6.0] as [number, number, number], scale: 0.45, speed: 0.82 },
 ];
 
-// ─── Scene ───────────────────────────────────────────────────────────────────
+const DOGES = [
+  { id: 0, position: [-6.5,  2.0, -3.0] as [number, number, number], scale: 0.9, speed: 0.50 },
+  { id: 1, position: [ 6.0, -2.5, -2.5] as [number, number, number], scale: 1.1, speed: 0.62 },
+  { id: 2, position: [ 0.0,  4.2, -4.0] as [number, number, number], scale: 0.8, speed: 0.44 },
+  { id: 3, position: [-3.5, -3.2, -3.5] as [number, number, number], scale: 1.0, speed: 0.70 },
+  { id: 4, position: [ 8.0,  3.5, -4.0] as [number, number, number], scale: 0.75, speed: 0.55 },
+];
+
+// ─── Export ───────────────────────────────────────────────────────────────────
 
 export function HeroScene() {
   return (
     <Canvas className="pointer-events-none" dpr={[1, 1.5]}>
       <PerspectiveCamera makeDefault position={[0, 0, 10]} fov={60} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[5, 8, 3]} intensity={1.4} castShadow />
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[5, 8, 3]} intensity={1.4} />
       <directionalLight position={[-5, -3, -2]} intensity={0.3} />
       <Stars radius={60} depth={30} count={800} factor={3} fade speed={0.5} />
-      {BLOCKS.map((b) => (
+
+      {GRASS_BLOCKS.map((b) => (
         <GrassBlock key={b.id} position={b.position} scale={b.scale} speed={b.speed} />
+      ))}
+
+      {DOGES.map((d) => (
+        <DogeHead key={d.id} position={d.position} scale={d.scale} speed={d.speed} />
       ))}
     </Canvas>
   );
