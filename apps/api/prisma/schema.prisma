@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,8 +7,463 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  PLAYER
+  MODERATOR
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+  MUTED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  PURCHASE
+  REWARD
+  GIFT_CODE
+  ADMIN_ADJUST
+}
+
+enum PaymentMethod {
+  MOMO
+  BANK_TRANSFER
+  GIFT_CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum ShopItemType {
+  ITEM
+  CRATE
+  RANK
+  COSMETIC
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketType {
+  BUG
+  BAN_APPEAL
+  BILLING
+  GENERAL
+}
+
+enum NotificationType {
+  PAYMENT
+  PURCHASE
+  FORUM_REPLY
+  MENTION
+  SYSTEM
+  ACHIEVEMENT
+}
+
+// ─────────────────────────────────────────────
+// USER & AUTH
+// ─────────────────────────────────────────────
+
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id           BigInt     @id @default(autoincrement())
+  username     String     @unique
+  email        String     @unique
+  passwordHash String
+  role         UserRole   @default(PLAYER)
+  status       UserStatus @default(ACTIVE)
+  banReason    String?
+  banExpiresAt DateTime?
+  balance      Int        @default(0)
+  avatarUrl    String?
+  discordId    String?    @unique
+  isVerified   Boolean    @default(false)
+  deletedAt    DateTime?
+
+  twoFactor           TwoFactor?
+  emailVerifications  EmailVerification[]
+  sessions            Session[]
+  transactions        Transaction[]
+  purchases           Purchase[]
+  payments            Payment[]
+  forumThreads        ForumThread[]
+  forumPosts          ForumPost[]
+  forumReactions      ForumReaction[]
+  tickets             Ticket[]
+  ticketMessages      TicketMessage[]
+  notifications       Notification[]
+  auditLogs           AuditLog[]
+  giftCodeRedemptions GiftCodeRedemption[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([username])
+  @@index([deletedAt])
+}
+
+model TwoFactor {
+  id          BigInt   @id @default(autoincrement())
+  userId      BigInt   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secret      String
+  enabled     Boolean  @default(false)
+  backupCodes String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Session {
+  id           BigInt   @id @default(autoincrement())
+  userId       BigInt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  rememberMe   Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+}
+
+model EmailVerification {
+  id        BigInt    @id @default(autoincrement())
+  userId    BigInt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  type      String
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+}
+
+model AuthMeSync {
+  id           BigInt    @id @default(autoincrement())
+  username     String    @unique
+  passwordHash String
+  email        String?
+  lastLogin    DateTime?
+  lastSynced   DateTime  @default(now())
+
+  @@index([username])
+}
+
+// ─────────────────────────────────────────────
+// ECONOMY
+// ─────────────────────────────────────────────
+
+model Transaction {
+  id            BigInt          @id @default(autoincrement())
+  userId        BigInt
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount        Int
+  type          TransactionType
+  reason        String
+  approverId    BigInt?
+  referenceId   String?
+  balanceBefore Int
+  balanceAfter  Int
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model GiftCode {
+  id          BigInt    @id @default(autoincrement())
+  code        String    @unique
+  amount      Int
+  maxUses     Int       @default(1)
+  usedCount   Int       @default(0)
+  expiresAt   DateTime?
+  createdById BigInt?
+
+  redemptions GiftCodeRedemption[]
+
+  createdAt DateTime @default(now())
+
+  @@index([code])
+}
+
+model GiftCodeRedemption {
+  id         BigInt   @id @default(autoincrement())
+  giftCodeId BigInt
+  giftCode   GiftCode @relation(fields: [giftCodeId], references: [id])
+  userId     BigInt
+  user       User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([giftCodeId, userId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// SHOP & PAYMENTS
+// ─────────────────────────────────────────────
+
+model ShopItem {
+  id          BigInt       @id @default(autoincrement())
+  name        String
+  description String?
+  price       Int
+  type        ShopItemType
+  serverId    String?
+  imageUrl    String?
+  isActive    Boolean      @default(true)
+  sortOrder   Int          @default(0)
+
+  purchases Purchase[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model Purchase {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt
+  user        User      @relation(fields: [userId], references: [id])
+  shopItemId  BigInt
+  shopItem    ShopItem  @relation(fields: [shopItemId], references: [id])
+  quantity    Int       @default(1)
+  totalPrice  Int
+  serverId    String?
+  deliveredAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([shopItemId])
+}
+
+model Payment {
+  id           BigInt        @id @default(autoincrement())
+  userId       BigInt
+  user         User          @relation(fields: [userId], references: [id])
+  amount       Int
+  dogeAmount   Int
+  method       PaymentMethod
+  status       PaymentStatus @default(PENDING)
+  reference    String?       @unique
+  providerData Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([reference])
+}
+
+// ─────────────────────────────────────────────
+// FORUM
+// ─────────────────────────────────────────────
+
+model ForumCategory {
+  id          BigInt        @id @default(autoincrement())
+  name        String
+  slug        String        @unique
+  description String?
+  sortOrder   Int           @default(0)
+  threads     ForumThread[]
+
+  createdAt DateTime @default(now())
+}
+
+model ForumThread {
+  id         BigInt        @id @default(autoincrement())
+  title      String
+  authorId   BigInt
+  author     User          @relation(fields: [authorId], references: [id])
+  categoryId BigInt
+  category   ForumCategory @relation(fields: [categoryId], references: [id])
+  isPinned   Boolean       @default(false)
+  isLocked   Boolean       @default(false)
+  viewCount  Int           @default(0)
+  deletedAt  DateTime?
+
+  posts ForumPost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([deletedAt])
+}
+
+model ForumPost {
+  id        BigInt      @id @default(autoincrement())
+  content   String
+  authorId  BigInt
+  author    User        @relation(fields: [authorId], references: [id])
+  threadId  BigInt
+  thread    ForumThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  deletedAt DateTime?
+
+  reactions ForumReaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([threadId])
+  @@index([deletedAt])
+}
+
+model ForumReaction {
+  id     BigInt    @id @default(autoincrement())
+  userId BigInt
+  user   User      @relation(fields: [userId], references: [id])
+  postId BigInt
+  post   ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  type   String
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([postId])
+}
+
+// ─────────────────────────────────────────────
+// LEADERBOARD
+// ─────────────────────────────────────────────
+
+model LeaderboardEntry {
+  id       BigInt @id @default(autoincrement())
+  username String
+  gameMode String
+  statKey  String
+  value    BigInt @default(0)
+  rank     Int    @default(0)
+  period   String @default("alltime")
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([username, gameMode, statKey, period])
+  @@index([gameMode, statKey, period, rank])
+}
+
+// ─────────────────────────────────────────────
+// SUPPORT
+// ─────────────────────────────────────────────
+
+model Ticket {
+  id       BigInt       @id @default(autoincrement())
+  userId   BigInt
+  user     User         @relation(fields: [userId], references: [id])
+  title    String
+  type     TicketType
+  status   TicketStatus @default(OPEN)
+  priority Int          @default(0)
+  closedAt DateTime?
+
+  messages TicketMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+}
+
+model TicketMessage {
+  id       BigInt @id @default(autoincrement())
+  ticketId BigInt
+  ticket   Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId BigInt
+  author   User   @relation(fields: [authorId], references: [id])
+  content  String
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId])
+}
+
+// ─────────────────────────────────────────────
+// WIKI
+// ─────────────────────────────────────────────
+
+model WikiPage {
+  id           BigInt  @id @default(autoincrement())
+  slug         String  @unique
+  title        String
+  content      String
+  authorId     BigInt?
+  lastEditedBy BigInt?
+  isPublished  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isPublished])
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS & AUDIT
+// ─────────────────────────────────────────────
+
+model Notification {
+  id      BigInt           @id @default(autoincrement())
+  userId  BigInt
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type    NotificationType
+  title   String
+  message String
+  isRead  Boolean          @default(false)
+  data    Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id           BigInt  @id @default(autoincrement())
+  userId       BigInt?
+  user         User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String?
+  resourceId   String?
+  data         Json?
+  ipAddress    String?
+  userAgent    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }

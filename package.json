@@ -1,25 +1,26 @@
 {
-  "name": "turborepo-basic-shared",
-  "version": "0.0.0",
+  "name": "dogeland",
+  "version": "0.0.1",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "test": "turbo run test",
+    "db:migrate": "pnpm --filter api prisma migrate dev",
+    "db:generate": "pnpm --filter api prisma generate",
+    "db:studio": "pnpm --filter api prisma studio",
+    "db:seed": "pnpm --filter api prisma db seed"
   },
   "devDependencies": {
-    "prettier": "^3.0.0",
-    "prisma": "^5.1.0",
-    "turbo": "1.10.12"
+    "prettier": "^3.3.3",
+    "turbo": "^2.3.3",
+    "typescript": "^5.6.3"
   },
   "engines": {
-    "npm": ">=7.0.0",
-    "node": ">=14.0.0"
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
   },
-  "packageManager": "yarn@1.22.17"
+  "packageManager": "pnpm@11.5.2"
 }

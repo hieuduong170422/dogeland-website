@@ -1,30 +1,50 @@
-import { Logger } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
-declare const module: any;
 async function bootstrap() {
-  const logger = new Logger('EntryPoint');
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
+  const logger = new Logger('Bootstrap');
 
-  const config = new DocumentBuilder()
-    .setTitle('Leaves Tracker')
-    .setDescription('Api Docs for leaves tracker')
-    .setVersion('1.0')
-    .build();
+  const nodeEnv = config.get<string>('app.nodeEnv');
+  const port = config.get<number>('app.port') ?? 4000;
+  const apiPrefix = config.get<string>('app.apiPrefix') ?? '/api/v1';
+  const frontendUrl = config.get<string>('app.frontendUrl') ?? 'http://localhost:3000';
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  // Security headers
+  app.use(helmet({
+    contentSecurityPolicy: nodeEnv === 'production' ? undefined : false,
+  }));
 
-  const PORT = 5002;
+  // CORS — allow only known origins
+  app.enableCors({
+    origin: nodeEnv === 'production' ? [frontendUrl] : ['http://localhost:3000', 'http://localhost:3001'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  });
 
-  await app.listen(PORT);
+  // Cookie parsing (for refresh token)
+  app.use(cookieParser());
 
-  if (module.hot) {
-    module.hot.accept();
-    module.hot.dispose(() => app.close());
-  }
-  logger.log(`Server running on http://localhost:${PORT}`);
+  // Global validation — strip unknown fields
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  app.setGlobalPrefix(apiPrefix);
+
+  await app.listen(port);
+  logger.log(`Server running on http://localhost:${port}${apiPrefix}`);
+  logger.log(`Environment: ${nodeEnv}`);
 }
+
 bootstrap();

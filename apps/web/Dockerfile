@@ -1,33 +1,50 @@
-FROM node:16-alpine AS builder
-RUN apk update
-# Set working directory
+FROM node:20-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable && apk add --no-cache libc6-compat
+
+# ── Pruner ────────────────────────────────────────────────────────────────────
+FROM base AS pruner
 WORKDIR /app
-RUN yarn global add turbo
+RUN pnpm add -g turbo@^2
 COPY . .
-# Only Take packages that are needed to compile this app
-RUN turbo prune --scope=web --docker
+RUN turbo prune web --docker
 
-# Add lockfile and package.json's of isolated subworkspace
-FROM node:16-alpine AS installer
-RUN apk update
-RUN apk add --no-cache libc6-compat
+# ── Installer ─────────────────────────────────────────────────────────────────
+FROM base AS installer
 WORKDIR /app
-COPY --from=builder /app/out/json/ .
-COPY --from=builder /app/out/yarn.lock ./yarn.lock
-COPY --from=builder /app/turbo.json ./turbo.json
-RUN yarn install --frozen-lockfile
+COPY --from=pruner /app/out/json/ .
+COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
+RUN pnpm install --frozen-lockfile
 
-
-FROM node:16-alpine AS sourcer
-RUN apk update
+# ── Builder ───────────────────────────────────────────────────────────────────
+FROM base AS builder
 WORKDIR /app
-COPY --from=installer /app/ .
-COPY --from=builder /app/out/full/ .
-COPY .gitignore .gitignore
-RUN yarn turbo run build --scope=web --include-dependencies --no-deps
 
-FROM node:16-alpine as runner
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY --from=installer /app/node_modules ./node_modules
+COPY --from=pruner /app/out/full/ .
+RUN pnpm --filter web build
+
+# ── Runner ────────────────────────────────────────────────────────────────────
+FROM node:20-alpine AS runner
 WORKDIR /app
-COPY --from=sourcer /app/ .
-WORKDIR /app/apps/web/
-CMD [ "npm", "start" ]
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+CMD ["node", "apps/web/server.js"]
