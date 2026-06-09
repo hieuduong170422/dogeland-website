@@ -120,7 +120,7 @@ function PurchaseDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md flex flex-col gap-5">
         <DialogHeader>
           <DialogTitle>Xác nhận mua hàng</DialogTitle>
         </DialogHeader>
@@ -128,27 +128,25 @@ function PurchaseDialog({
         {/* Item preview */}
         <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 border border-border">
           <ItemImage item={item} size="md" />
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className={cn('text-xs px-2 py-0.5 rounded-full border font-medium', style.badge)}>
-                {style.label}
-              </span>
-            </div>
+          <div className="flex-1 min-w-0 space-y-1">
+            <span className={cn('inline-block text-xs px-2 py-0.5 rounded-full border font-medium', style.badge)}>
+              {style.label}
+            </span>
             <p className="font-semibold">{item.name}</p>
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">{item.description}</p>
+            <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
           </div>
         </div>
 
         {/* Server selector for RANK */}
         {item.type === 'RANK' && (
-          <div>
-            <label className="text-sm font-medium mb-1 block">Chọn server</label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium block">Chọn server áp dụng</label>
             <select
               value={serverId}
               onChange={(e) => setServerId(e.target.value)}
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="">-- Chọn server áp dụng --</option>
+              <option value="">-- Chọn server --</option>
               <option value="survival">Survival</option>
               <option value="skyblock">Skyblock</option>
               <option value="prison">Prison</option>
@@ -157,36 +155,36 @@ function PurchaseDialog({
         )}
 
         {/* Balance info */}
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
+        <div className="rounded-xl border border-border divide-y divide-border text-sm">
+          <div className="flex justify-between items-center px-4 py-3">
             <span className="text-muted-foreground">Số dư hiện tại</span>
-            <span className="font-medium flex items-center gap-1">
+            <span className="font-medium flex items-center gap-1.5">
               <Coins size={13} className="text-yellow-400" />
               {balance.toLocaleString()} xu
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Giá</span>
+          <div className="flex justify-between items-center px-4 py-3">
+            <span className="text-muted-foreground">Giá sản phẩm</span>
             <span className="font-semibold text-primary">
               -{item.price.toLocaleString()} xu
             </span>
           </div>
-          <div className="border-t border-border pt-2 flex justify-between">
-            <span className="text-muted-foreground">Số dư sau</span>
-            <span className={cn('font-semibold', canAfford ? 'text-green-400' : 'text-destructive')}>
+          <div className="flex justify-between items-center px-4 py-3 bg-muted/30 rounded-b-xl">
+            <span className="font-medium">Số dư sau khi mua</span>
+            <span className={cn('font-bold text-base', canAfford ? 'text-green-400' : 'text-destructive')}>
               {canAfford ? newBalance.toLocaleString() : '—'} xu
             </span>
           </div>
         </div>
 
         {!canAfford && (
-          <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-lg px-3 py-2">
-            <XCircle size={15} />
-            Số dư không đủ. Cần thêm {(item.price - balance).toLocaleString()} xu.
+          <div className="flex items-center gap-2.5 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3">
+            <XCircle size={16} className="shrink-0" />
+            <span>Số dư không đủ. Cần nạp thêm <span className="font-semibold">{(item.price - balance).toLocaleString()} xu</span>.</span>
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>
             Huỷ
           </Button>
@@ -220,9 +218,13 @@ function ItemCard({ item, onBuy }: { item: ShopItem; onBuy: (item: ShopItem) => 
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onBuy(item)}
+      onKeyDown={(e) => e.key === 'Enter' && onBuy(item)}
       className={cn(
         'group relative flex flex-col rounded-2xl border border-border bg-card overflow-hidden',
-        'hover:border-primary/40 hover:shadow-lg transition-all duration-200',
+        'hover:border-primary/40 hover:shadow-lg transition-all duration-200 cursor-pointer',
         style.glow,
       )}
     >
@@ -268,7 +270,7 @@ function ItemCard({ item, onBuy }: { item: ShopItem; onBuy: (item: ShopItem) => 
           <Button
             size="sm"
             className="gap-1.5 text-xs h-8"
-            onClick={() => onBuy(item)}
+            onClick={(e) => { e.stopPropagation(); onBuy(item); }}
           >
             <ShoppingCart size={12} />
             Mua
