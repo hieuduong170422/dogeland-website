@@ -2,8 +2,69 @@
 
 import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, PerspectiveCamera, Stars } from '@react-three/drei/core';
+import { Float, PerspectiveCamera, Stars, useGLTF } from '@react-three/drei/core';
 import * as THREE from 'three';
+
+// ─── GLB Model loader ─────────────────────────────────────────────────────────
+// Khi có file GLB thật, đặt vào apps/web/public/models/ rồi dùng 2 component
+// bên dưới để thay thế GrassBlock và DogeHead trong GRASS_BLOCKS / DOGES.
+//
+// Preload (tải trước khi render để tránh pop-in):
+//   useGLTF.preload('/models/grass-block.glb');
+//   useGLTF.preload('/models/doge.glb');
+
+type ModelProps = {
+  position: [number, number, number];
+  scale: number;
+  speed: number;
+};
+
+// Swap vào GRASS_BLOCKS khi có file:
+//   <GrassBlockModel position={b.position} scale={b.scale} speed={b.speed} />
+function GrassBlockModel({ position, scale, speed }: ModelProps) {
+  const group = useRef<THREE.Group>(null!);
+  const { scene } = useGLTF('/models/grass-block.glb');
+  const clone = useMemo(() => scene.clone(), [scene]);
+  const rotSpeed = useMemo(() => ({ x: (Math.random() - 0.5) * 0.3, y: (Math.random() - 0.5) * 0.5 }), []);
+
+  useFrame((_, delta) => {
+    group.current.rotation.x += rotSpeed.x * delta * speed;
+    group.current.rotation.y += rotSpeed.y * delta * speed;
+  });
+
+  return (
+    <Float speed={speed} rotationIntensity={0.2} floatIntensity={0.5}>
+      <group ref={group} position={position} scale={scale}>
+        <primitive object={clone} />
+      </group>
+    </Float>
+  );
+}
+
+// Swap vào DOGES khi có file:
+//   <DogeModel position={d.position} scale={d.scale} speed={d.speed} />
+function DogeModel({ position, scale, speed }: ModelProps) {
+  const group = useRef<THREE.Group>(null!);
+  const { scene } = useGLTF('/models/doge.glb');
+  const clone = useMemo(() => scene.clone(), [scene]);
+  const rotSpeed = useMemo(() => ({ y: (Math.random() - 0.5) * 0.5 }), []);
+
+  useFrame((_, delta) => {
+    group.current.rotation.y += rotSpeed.y * delta * speed;
+  });
+
+  return (
+    <Float speed={speed} floatIntensity={0.7} rotationIntensity={0.15}>
+      <group ref={group} position={position} scale={scale}>
+        <primitive object={clone} />
+      </group>
+    </Float>
+  );
+}
+
+// Suppress unused warning khi chưa dùng
+void GrassBlockModel;
+void DogeModel;
 
 // ─── Procedural pixel-art textures ───────────────────────────────────────────
 
